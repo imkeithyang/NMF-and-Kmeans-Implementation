@@ -5,6 +5,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import random
 
 """ kmeans implementation"""
+
 def calculate_center(data):
     """
     Input: some data
@@ -138,6 +139,7 @@ def NMF(X, k_components, max_iter, display_step):
     NMF training procedure, Randomly initiate W and H with uniform distribution between 0 and 1
     Output: W and H matrix, training cost, clustering assignments
     """
+    X = np.transpose(X)
     m,n=np.shape(X)
     W =  np.random.random((m, k_components))
     H =  np.random.random((k_components, n))
@@ -152,7 +154,7 @@ def NMF(X, k_components, max_iter, display_step):
             print("Epoch:","{:4d}".format(idx), " Cost=","{:.3f}".format(costValue))
                 
     print('NMF training ends')
-    predicted_cluster = np.argmax(W,1)
+    predicted_cluster = np.argmax(H,0)
     return W, H ,training_costNMF, predicted_cluster
 
 def inverse_transform(W, H):
@@ -165,32 +167,39 @@ def inverse_transform(W, H):
 
 """Ploting function for clusters"""
 c = ['blue','green','red','magenta','yellow','black','white']
-def plotblob(X,y): 
-    fig = plt.figure(figsize=(10,7))
-    ax = fig.add_subplot(111, projection='3d')
+def plotblob(X,y,algo = 'original'): 
+    fig = plt.figure(figsize = (10,7))
+    if algo == 'NMF': fig.suptitle('NMF Cluster Assignments')
+    if algo == 'kmeans': fig.suptitle('K-means Cluster Assignments')
+    if algo == 'original': fig.suptitle('Original Cluster Assignments')
+    if len(X[0]) > 2: 
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_xlabel('X axis');ax.set_ylabel('Y axis');ax.set_zlabel('Z axis')
+    else: ax = fig.add_subplot(111);ax.set_xlabel('X axis'); ax.set_ylabel('Y axis')
     for i in range(np.max(y) + 1):
-        ax.scatter(X[y == i, 0], X[y == i, 1], X[y == i, 2], zdir = 'z', s=10, c=c[i])
+        if len(X[0]) > 2: 
+            ax.scatter(X[y == i, 0], X[y == i, 1], X[y == i, 2], zdir = 'z', s=10, c=c[i])
+        else: ax.scatter(X[y == i, 0], X[y == i, 1], s=10, c=c[i])
 
-"""Generating Clusters"""
 from sklearn.datasets.samples_generator import make_blobs
+feature_size = 16;num_of_cluster = 6
 """Generate centers for of clusters"""
-centers = [np.random.randint(low = 50, high = 100, size = (3)) for i in range(5)]
+centers = [np.random.randint(low = 50, high = 100, size = (feature_size)) for i in range(num_of_cluster)]
 
 """Generate std for clusters"""
-cluster_std = [np.random.randint(low = 2, high = 5, size = (1)) for i in range(5)]
+cluster_std = [np.random.randint(low = 2, high = 6, size = (1)) for i in range(num_of_cluster)]
 
 """Generate blobs for testing algorithms"""
-X, y = make_blobs(n_samples=2000, cluster_std=cluster_std, centers = centers, n_features=3, random_state=0)
-
+X, y = make_blobs(n_samples=2000, cluster_std=cluster_std, centers = centers, n_features=feature_size, random_state=0)
 """
 Generate some outliers for testing algorithms
 For each center add 5 outliers
 """
-for i in range(len(centers)): 
+for i in range(num_of_cluster): 
     for j in range(5):
         op = random.choice([0, 1])
-        if op == 0: shift = np.random.randint(low = 20, high = 30, size = (3))
-        else: shift = np.random.randint(low = -30, high = -20, size = (3))
+        if op == 0: shift = np.random.randint(low = cluster_std[i]*4, high = cluster_std[i]*5, size = (feature_size))
+        else: shift = np.random.randint(low = -cluster_std[i]*5, high = -cluster_std[i]*4, size = (feature_size))
         np.append(X, np.add(centers[i], shift))
         np.append(y, i)
 
@@ -200,14 +209,13 @@ plotblob(X,y)
 """Using both algorithm to assign clusters for generated data"""
 iteration = 1000;
 #NMF
-W, H, training_costNMF, predicted_cluster = NMF(X, k_components=5, max_iter=iteration,display_step=iteration/10)
+W, H, training_costNMF, predicted_cluster = NMF(X, k_components=6, max_iter=iteration,display_step=iteration/10)
 #k-means
-assignments, training_costkmeans = kmeans(X,5,5)
+assignments, training_costkmeans = kmeans(X,6,1)
 print(predicted_cluster);print(assignments)
 
 """Plot clusters and cluster assignments"""
 V = inverse_transform(W, H)
-plotblob(X,predicted_cluster)#NMF Cluster Assignments
-plotblob(X,assignments)#k-means Cluster Assignments
+plotblob(X,predicted_cluster, algo = 'NMF')#NMF Cluster Assignments
+plotblob(X,assignments, algo = 'kmeans')#k-means Cluster Assignments
 plotblob(X,y)#Original Cluster Assignments
-
